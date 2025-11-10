@@ -5,6 +5,7 @@ export interface CustomMetricOptions {
   description?: string;
   unit?: string;
   labels?: Record<string, string>;
+  [key: string]: any; // 允许其他属性以支持动态标签
 }
 
 /**

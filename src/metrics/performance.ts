@@ -251,15 +251,15 @@ export class PerformanceCollector {
         if (navigationEntries.length > 0) {
           const navEntry = navigationEntries[0];
 
-          // DOM Content Loaded
-          const domContentLoaded = Math.round(navEntry.domContentLoadedEventEnd - navEntry.navigationStart);
+          // DOM Content Loaded - 使用fetchStart作为基准
+          const domContentLoaded = Math.round(navEntry.domContentLoadedEventEnd - navEntry.fetchStart);
           if (domContentLoaded > 0) {
             this.metrics.domContentLoaded = domContentLoaded;
             this.recordMetric('dom_content_loaded', domContentLoaded);
           }
 
-          // Load Complete
-          const loadComplete = Math.round(navEntry.loadEventEnd - navEntry.navigationStart);
+          // Load Complete - 使用fetchStart作为基准
+          const loadComplete = Math.round(navEntry.loadEventEnd - navEntry.fetchStart);
           if (loadComplete > 0) {
             this.metrics.loadComplete = loadComplete;
             this.recordMetric('load_complete', loadComplete);

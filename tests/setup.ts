@@ -16,10 +16,11 @@ Object.defineProperty(window, 'performance', {
   },
 });
 
-// Mock PerformanceObserver
-global.PerformanceObserver = jest.fn().mockImplementation((callback) => ({
+// Mock PerformanceObserver with proper type
+(global as any).PerformanceObserver = jest.fn().mockImplementation((callback) => ({
   observe: jest.fn(),
   disconnect: jest.fn(),
+  supportedEntryTypes: [],
 }));
 
 // Mock fetch
@@ -38,7 +39,14 @@ const mockXHR = {
   responseText: '',
 };
 
-global.XMLHttpRequest = jest.fn().mockImplementation(() => mockXHR);
+// Mock XMLHttpRequest with proper constants
+const MockXMLHttpRequest = jest.fn().mockImplementation(() => mockXHR) as any;
+MockXMLHttpRequest.UNSENT = 0;
+MockXMLHttpRequest.OPENED = 1;
+MockXMLHttpRequest.HEADERS_RECEIVED = 2;
+MockXMLHttpRequest.LOADING = 3;
+MockXMLHttpRequest.DONE = 4;
+(global as any).XMLHttpRequest = MockXMLHttpRequest;
 
 // Mock OpenTelemetry APIs
 const mockSpan = {
