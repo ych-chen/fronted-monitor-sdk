@@ -1,0 +1,43 @@
+# Source files (only distribute built files)
+src/
+examples/
+*.ts
+!*.d.ts
+
+# Development files
+.eslintrc.js
+.prettierrc
+tsconfig.json
+rollup.config.js
+
+# Documentation (README.md is included)
+*.md
+!README.md
+
+# Development dependencies
+node_modules/
+
+# Development logs
+*.log
+logs/
+
+# Environment files
+.env*
+
+# IDE files
+.vscode/
+.idea/
+
+# Test files
+test/
+tests/
+*.test.ts
+*.spec.ts
+
+# Build artifacts that shouldn't be published
+*.tsbuildinfo
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,16 @@
+{
+  "name": "test-monitor-usage",
+  "version": "1.0.0",
+  "description": "Test project for frontend-monitor-sdk",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js",
+    "test-browser": "http-server . -p 8080"
+  },
+  "dependencies": {
+    "frontend-monitor-sdk": "file:./frontend-monitor-sdk-1.0.0.tgz"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "name": "frontend-monitor-sdk",
+  "version": "1.0.0",
+  "description": "A frontend monitoring SDK based on OpenTelemetry",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.js",
+    "format": "prettier --write src/**/*.ts",
+    "prepublishOnly": "npm run build",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:integration": "jest --config=jest.integration.config.js",
+    "test:e2e": "playwright test"
+  },
+  "keywords": [
+    "opentelemetry",
+    "monitoring",
+    "frontend",
+    "performance",
+    "tracing",
+    "metrics"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/frontend-monitor-sdk.git"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.7.0",
+    "@opentelemetry/auto-instrumentations-web": "^0.38.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.48.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.48.0",
+    "@opentelemetry/resources": "^1.18.1",
+    "@opentelemetry/sdk-metrics": "^1.18.1",
+    "@opentelemetry/sdk-trace-web": "^1.18.1",
+    "@opentelemetry/semantic-conventions": "^1.18.1"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^26.0.1",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^11.1.5",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.19.24",
+    "@typescript-eslint/eslint-plugin": "^6.12.0",
+    "@typescript-eslint/parser": "^6.12.0",
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "playwright": "^1.56.1",
+    "prettier": "^3.1.0",
+    "rollup": "^4.4.0",
+    "rollup-plugin-dts": "^6.1.0",
+    "ts-jest": "^29.4.5",
+    "tslib": "^2.8.1",
+    "typescript": "^5.2.2"
+  },
+  "peerDependencies": {
+    "typescript": ">=4.0.0"
+  }
+}
