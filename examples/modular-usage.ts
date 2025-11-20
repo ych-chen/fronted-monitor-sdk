@@ -17,7 +17,6 @@ async function modularUsageExample() {
     serviceName: 'modular-example-app',
     serviceVersion: '2.0.0',
     endpoint: 'https://your-collector.example.com',
-    apiKey: 'your-api-key',
     sampleRate: 1.0,
 
     // 模块化配置
