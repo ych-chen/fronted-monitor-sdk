@@ -1,4 +1,4 @@
-import { SpanKind, SpanStatusCode } from '@opentelemetry/api';
+import { SpanKind, SpanStatusCode, propagation, context } from '@opentelemetry/api';
 import type { TraceManager } from '../tracer';
 
 interface FetchOptions {
@@ -255,23 +255,17 @@ export class FetchInstrumentation {
     if (!init || !span) return init;
 
     try {
-      const traceContext = span?.getTraceContext?.();
-      if (!traceContext) return init;
-
       const headers = new Headers(init.headers);
 
-      Object.entries(traceContext).forEach(([key, value]) => {
-        if (typeof value === 'string') {
-          headers.set(key, value);
-        }
-      });
+      // 使用OpenTelemetry标准的propagation API注入trace上下文
+      propagation.inject(context.active(), headers);
 
       return {
         ...init,
         headers,
       };
     } catch (error) {
-      // 静默忽略错误
+      console.warn('Failed to inject trace headers:', error);
       return init;
     }
   }

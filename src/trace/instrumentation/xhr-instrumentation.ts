@@ -1,4 +1,4 @@
-import { SpanKind, SpanStatusCode } from '@opentelemetry/api';
+import { SpanKind, SpanStatusCode, propagation, context } from '@opentelemetry/api';
 import type { TraceManager } from '../tracer';
 
 interface XHROptions {
@@ -237,17 +237,19 @@ export class XHRInstrumentation {
    * 注入trace头
    */
   private injectTraceHeaders(xhr: XMLHttpRequest, span: any): void {
-    // 这里应该注入OpenTelemetry的trace头
-    // 由于我们没有直接的API来注入，这里简化处理
     try {
-      const headers = span?.getTraceContext?.();
-      if (headers) {
-        Object.entries(headers).forEach(([key, value]) => {
-          xhr.setRequestHeader(key, value as string);
-        });
-      }
+      // 创建一个临时对象来存储headers，然后使用OpenTelemetry的propagation API
+      const headers: Record<string, string> = {};
+
+      // 使用OpenTelemetry标准的propagation API注入trace上下文
+      propagation.inject(context.active(), headers);
+
+      // 将注入的headers设置到XHR中
+      Object.entries(headers).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
     } catch (error) {
-      // 静默忽略错误
+      console.warn('Failed to inject trace headers:', error);
     }
   }
 

@@ -36,13 +36,7 @@ export interface MonitorConfig {
    */
   sampleRate?: number;
 
-  /**
-   * API密钥 - 可选
-   * 用于身份验证的API密钥
-   * 如果后端服务需要认证，则需要提供此密钥
-   */
-  apiKey?: string;
-
+  
   /**
    * 自定义属性 - 可选
    * 全局标签，会附加到所有监控数据中

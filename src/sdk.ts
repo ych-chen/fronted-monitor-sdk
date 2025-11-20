@@ -3,6 +3,7 @@ import {
   WebTracerProvider,
   BatchSpanProcessor,
 } from '@opentelemetry/sdk-trace-web';
+import { TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-base';
 import { MeterProvider } from '@opentelemetry/sdk-metrics';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
@@ -124,7 +125,6 @@ export class FrontendMonitorSDKImpl {
 
     this.config = {
       ...DEFAULT_CONFIG,
-      sampleRate: 1.0,
       enablePerformanceMonitoring: true,
       enableErrorMonitoring: true,
       enableUserInteractionMonitoring: true,
@@ -179,12 +179,12 @@ export class FrontendMonitorSDKImpl {
 
     this.tracerProvider = new WebTracerProvider({
       resource,
+      sampler: new TraceIdRatioBasedSampler(this.config.sampleRate || 1.0),
     });
 
     // 创建追踪导出器
     const traceExporter = new OTLPTraceExporter({
       url: `${this.config.endpoint}/v1/traces`,
-      headers: this.config.apiKey ? { 'x-api-key': this.config.apiKey } : undefined,
     });
 
     // 添加批量处理器
@@ -209,7 +209,6 @@ export class FrontendMonitorSDKImpl {
     // 创建指标导出器
     const metricExporter = new OTLPMetricExporter({
       url: `${this.config.endpoint}/v1/metrics`,
-      headers: this.config.apiKey ? { 'x-api-key': this.config.apiKey } : undefined,
     });
 
     // 添加批量导出器

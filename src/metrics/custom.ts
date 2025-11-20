@@ -112,7 +112,7 @@ export class CustomMetricsCollector {
         gauge.add(delta, options.labels);
       }
     } else {
-      gauge.record(value);
+      gauge.add(value);
     }
   }
 
