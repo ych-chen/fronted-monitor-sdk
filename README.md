@@ -126,7 +126,6 @@ await monitor.init({
   serviceName: 'my-web-app',
   serviceVersion: '1.0.0',
   endpoint: 'https://your-collector.example.com',
-  apiKey: 'your-api-key',
 });
 ```
 
@@ -240,8 +239,7 @@ interface MonitorConfig {
   // 可选配置
   serviceVersion?: string;       // 服务版本
   sampleRate?: number;           // 采样率 (0-1)
-  apiKey?: string;               // API 密钥
-  attributes?: Record<string, string>; // 自定义属性
+    attributes?: Record<string, string>; // 自定义属性
 
   // 模块开关
   enableAutoTracing?: boolean;           // 自动追踪 (XMLHttpRequest/Fetch)

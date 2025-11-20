@@ -45,7 +45,6 @@ await monitor.init({
   serviceName: 'my-web-app',
   serviceVersion: '1.0.0',
   endpoint: 'https://your-collector.example.com',
-  apiKey: 'your-api-key',
   enablePerformanceMonitoring: true,
   enableErrorMonitoring: true,
   enableUserInteractionMonitoring: true
@@ -107,7 +106,6 @@ tracer.endSpan();
 | `endpoint` | string | ✅ | - | 监控数据收集端点URL |
 | `serviceVersion` | string | ❌ | - | 服务版本号，用于版本管理 |
 | `sampleRate` | number | ❌ | 1.0 | 采样率，范围0.0-1.0 |
-| `apiKey` | string | ❌ | - | API认证密钥 |
 | `enablePerformanceMonitoring` | boolean | ❌ | true | 是否启用性能监控 |
 | `enableErrorMonitoring` | boolean | ❌ | true | 是否启用错误监控 |
 | `enableUserInteractionMonitoring` | boolean | ❌ | true | 是否启用用户交互监控 |
