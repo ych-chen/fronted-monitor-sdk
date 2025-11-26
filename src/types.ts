@@ -92,6 +92,19 @@ export interface MonitorConfig {
    * 支持正则表达式或字符串匹配，用于过滤掉不需要监控的请求
    */
   excludedUrls?: string[];
+
+  /**
+   * 是否启用路由监控 - 可选，默认false
+   * 控制是否自动监控页面路由变化
+   * 包括Hash路由、History API、SPA路由变化等
+   */
+  enableRouteMonitoring?: boolean;
+
+  /**
+   * 路由监控配置 - 可选
+   * 路由监控的详细配置选项
+   */
+  routeMonitoringConfig?: RouteMonitoringConfig;
 }
 
 /**
@@ -254,10 +267,14 @@ export interface FrontendMonitorSDK {
   recordMetrics(metrics: Partial<any>): void;
   /** 记录用户交互 */
   recordUserInteraction(event: UserInteractionEvent): void;
+  /** 记录路由变化 */
+  recordRouteChange(event: RouteChangeEvent): void;
   /** 获取指标收集器 */
   getMetricsCollector(): MetricsCollector;
   /** 获取追踪管理器 */
   getTraceManager(): any;
+  /** 获取当前路由信息 */
+  getCurrentRoute(): { path: string; query: Record<string, string>; params: Record<string, string> };
   /** 销毁SDK */
   destroy(): Promise<void>;
 }
@@ -293,4 +310,118 @@ export interface ErrorModuleConfig {
   captureGlobalErrors?: boolean;
   captureUnhandledRejections?: boolean;
   captureResourceErrors?: boolean;
+}
+
+/**
+ * 路由变化事件接口
+ *
+ * 用于监控页面路由变化的详细信息
+ */
+export interface RouteChangeEvent {
+  /**
+   * 路由类型 - 必填
+   * 'hash': Hash路由变化 (#/path)
+   * 'popstate': 浏览器前进/后退
+   * 'pushstate': History API pushState
+   * 'replacestate': History API replaceState
+   * 'load': 页面初次加载
+   */
+  type: 'hash' | 'popstate' | 'pushstate' | 'replacestate' | 'load';
+
+  /**
+   * 源路径 - 路由变化前的路径
+   */
+  from: string;
+
+  /**
+   * 目标路径 - 路由变化后的路径
+   */
+  to: string;
+
+  /**
+   * 时间戳 - 必填
+   * 路由变化发生的时间戳
+   */
+  timestamp: number;
+
+  /**
+   * 路由切换耗时 - 可选
+   * 从开始路由变化到完成的时间（毫秒）
+   */
+  duration?: number;
+
+  /**
+   * 路由参数 - 可选
+   * 解析后的路由参数对象
+   */
+  params?: Record<string, string>;
+
+  /**
+   * 查询参数 - 可选
+   * URL查询参数对象
+   */
+  query?: Record<string, string>;
+
+  /**
+   * 页面标题 - 可选
+   * 路由变化后的页面标题
+   */
+  title?: string;
+
+  /**
+   * 导航状态 - 可选
+   * popstate事件的状态对象
+   */
+  state?: any;
+
+  /**
+   * 是否为SPA路由 - 可选
+   * 标识是否为单页应用的路由变化
+   */
+  isSPA?: boolean;
+}
+
+/**
+ * 路由监控配置接口
+ */
+export interface RouteMonitoringConfig {
+  /**
+   * 是否启用路由监控
+   */
+  enabled?: boolean;
+
+  /**
+   * 是否监控Hash路由变化
+   */
+  hashRouting?: boolean;
+
+  /**
+   * 是否监控History API
+   */
+  historyAPI?: boolean;
+
+  /**
+   * 是否监控popstate事件
+   */
+  popstate?: boolean;
+
+  /**
+   * 需要忽略的路径模式
+   */
+  ignoredPaths?: string[];
+
+  /**
+   * 是否解析路由参数
+   */
+  parseParams?: boolean;
+
+  /**
+   * 是否解析查询参数
+   */
+  parseQuery?: boolean;
+
+  /**
+   * 自定义路由匹配函数
+   */
+  customRouteMatcher?: (path: string) => { params?: Record<string, string>; query?: Record<string, string> };
 }

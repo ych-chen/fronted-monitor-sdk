@@ -18,6 +18,8 @@ import type {
   MonitorConfig,
   CustomSpanOptions,
   UserInteractionEvent,
+  RouteChangeEvent,
+  RouteMonitoringConfig,
   MetricsCollector,
   TracingProvider,
   SpanAttributes,
@@ -29,6 +31,7 @@ import type {
 import { TraceManager } from './trace/tracer';
 import { XHRInstrumentation, FetchInstrumentation } from './trace/instrumentation';
 import { PerformanceCollector, CustomMetricsCollector } from './metrics';
+import { RouteMonitor } from './route/route-monitor';
 import { DEFAULT_CONFIG } from './config/default-config';
 
 /**
@@ -109,6 +112,7 @@ export class FrontendMonitorSDKImpl {
   private customMetricsCollector: CustomMetricsCollector | null = null;
   private xhrInstrumentation: XHRInstrumentation | null = null;
   private fetchInstrumentation: FetchInstrumentation | null = null;
+  private routeMonitor: RouteMonitor | null = null;
 
   private isInitialized = false;
   private rootSpan: any = null;
@@ -305,6 +309,11 @@ export class FrontendMonitorSDKImpl {
     if (this.config.enableUserInteractionMonitoring) {
       this.setupUserInteractionMonitoring();
     }
+
+    // 设置路由监控
+    if (this.config.enableRouteMonitoring) {
+      this.setupRouteMonitoring();
+    }
   }
 
   /**
@@ -367,6 +376,81 @@ export class FrontendMonitorSDKImpl {
         timestamp: Date.now(),
       });
     });
+  }
+
+  /**
+   * 设置路由监控
+   */
+  private setupRouteMonitoring(): void {
+    if (!this.config) return;
+
+    const routeConfig = this.config.routeMonitoringConfig || {};
+
+    this.routeMonitor = new RouteMonitor({
+      enabled: true,
+      hashRouting: true,
+      historyAPI: true,
+      popstate: true,
+      parseParams: true,
+      parseQuery: true,
+      ignoredPaths: [],
+      ...routeConfig,
+    });
+
+    // 设置路由变化回调
+    this.routeMonitor.onRouteChange((event: RouteChangeEvent) => {
+      // 记录路由变化事件为用户交互
+      this.recordUserInteraction({
+        type: 'navigation',
+        element: 'route',
+        target: event.to,
+        timestamp: event.timestamp,
+        duration: event.duration,
+        value: {
+          route_type: event.type,
+          from: event.from,
+          to: event.to,
+          is_spa: event.isSPA,
+          params: event.params,
+          query: event.query,
+        },
+      });
+
+      // 记录路由变化指标
+      if (this.customMetricsCollector) {
+        this.customMetricsCollector.recordEvent('route_change', 1, {
+          route_type: event.type,
+          from_path: this.extractPath(event.from),
+          to_path: this.extractPath(event.to),
+          is_spa: event.isSPA?.toString() || 'false',
+        });
+
+        // 记录路由切换时间
+        if (event.duration) {
+          this.customMetricsCollector.recordDuration('route_change_duration', event.duration, {
+            route_type: event.type,
+            is_spa: event.isSPA?.toString() || 'false',
+          });
+        }
+      }
+
+      // 创建路由切换的追踪span
+      if (this.traceManager) {
+        const span = this.traceManager.startSpan(`route_change_${event.type}`, {
+          attributes: {
+            'route.from': event.from,
+            'route.to': event.to,
+            'route.type': event.type,
+            'route.is_spa': event.isSPA || false,
+            'route.duration': event.duration || 0,
+          },
+        });
+        span.end();
+      }
+    });
+
+    this.routeMonitor.enable();
+    console.log('Route monitoring enabled with config:', routeConfig);
   }
 
   startTracing(name: string, options?: CustomSpanOptions): TracingProvider {
@@ -444,6 +528,45 @@ export class FrontendMonitorSDKImpl {
     return this.traceManager;
   }
 
+  /**
+   * 记录路由变化
+   */
+  recordRouteChange(event: RouteChangeEvent): void {
+    if (!this.isInitialized || !this.routeMonitor) {
+      console.warn('Route monitoring is not initialized');
+      return;
+    }
+
+    this.routeMonitor.recordRouteChange(event);
+  }
+
+  /**
+   * 获取当前路由信息
+   */
+  getCurrentRoute(): { path: string; query: Record<string, string>; params: Record<string, string> } {
+    if (!this.isInitialized || !this.routeMonitor) {
+      return {
+        path: window.location.pathname + window.location.search + window.location.hash,
+        query: {},
+        params: {},
+      };
+    }
+
+    return this.routeMonitor.getCurrentRoute();
+  }
+
+  /**
+   * 提取路径中的路径部分（移除查询参数和hash）
+   */
+  private extractPath(fullPath: string): string {
+    try {
+      const url = new URL(fullPath, window.location.origin);
+      return url.pathname;
+    } catch {
+      return fullPath.split('?')[0].split('#')[0];
+    }
+  }
+
   async destroy(): Promise<void> {
     if (this.tracerProvider) {
       await this.tracerProvider.shutdown();
@@ -476,6 +599,12 @@ export class FrontendMonitorSDKImpl {
     if (this.rootSpan) {
       this.rootSpan.end();
       this.rootSpan = null;
+    }
+
+    // 清理路由监控
+    if (this.routeMonitor) {
+      this.routeMonitor.destroy();
+      this.routeMonitor = null;
     }
 
     this.traceManager = null;

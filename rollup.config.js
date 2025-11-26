@@ -6,6 +6,7 @@ const { default: dts } = require('rollup-plugin-dts');
 
 const external = [
   '@opentelemetry/api',
+  '@opentelemetry/sdk-trace-base',
   '@opentelemetry/sdk-trace-web',
   '@opentelemetry/sdk-metrics',
   '@opentelemetry/auto-instrumentations-web',
@@ -69,6 +70,7 @@ module.exports = [
       sourcemap: true,
       globals: {
         '@opentelemetry/api': 'otel',
+        '@opentelemetry/sdk-trace-base': 'otelBase',
         '@opentelemetry/sdk-trace-web': 'otelWeb',
         '@opentelemetry/sdk-metrics': 'otelMetrics',
         '@opentelemetry/auto-instrumentations-web': 'otelAutoWeb',

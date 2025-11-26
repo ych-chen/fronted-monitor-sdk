@@ -26,6 +26,7 @@ export class PerformanceCollector {
   private observers: PerformanceObserver[] = [];
   private metrics: Partial<PerformanceMetrics> = {};
   private callbacks: ((metrics: Partial<PerformanceMetrics>) => void)[] = [];
+  private histograms: Map<string, any> = new Map();
 
   constructor(meter: any) {
     this.meter = meter;
@@ -36,41 +37,41 @@ export class PerformanceCollector {
    * 设置指标收集器
    */
   private setupMetrics(): void {
-    // 创建性能指标
-    this.meter.createHistogram('performance_fcp', {
+    // 创建性能指标并保存引用
+    this.histograms.set('fcp', this.meter.createHistogram('performance_fcp', {
       description: 'First Contentful Paint time in milliseconds',
       unit: 'ms',
-    });
+    }));
 
-    this.meter.createHistogram('performance_lcp', {
+    this.histograms.set('lcp', this.meter.createHistogram('performance_lcp', {
       description: 'Largest Contentful Paint time in milliseconds',
       unit: 'ms',
-    });
+    }));
 
-    this.meter.createHistogram('performance_fid', {
+    this.histograms.set('fid', this.meter.createHistogram('performance_fid', {
       description: 'First Input Delay time in milliseconds',
       unit: 'ms',
-    });
+    }));
 
-    this.meter.createHistogram('performance_cls', {
+    this.histograms.set('cls', this.meter.createHistogram('performance_cls', {
       description: 'Cumulative Layout Shift score',
       unit: 'score',
-    });
+    }));
 
-    this.meter.createHistogram('performance_ttfb', {
+    this.histograms.set('ttfb', this.meter.createHistogram('performance_ttfb', {
       description: 'Time to First Byte in milliseconds',
       unit: 'ms',
-    });
+    }));
 
-    this.meter.createHistogram('performance_dom_content_loaded', {
+    this.histograms.set('dom_content_loaded', this.meter.createHistogram('performance_dom_content_loaded', {
       description: 'DOM Content Loaded time in milliseconds',
       unit: 'ms',
-    });
+    }));
 
-    this.meter.createHistogram('performance_load_complete', {
+    this.histograms.set('load_complete', this.meter.createHistogram('performance_load_complete', {
       description: 'Page Load Complete time in milliseconds',
       unit: 'ms',
-    });
+    }));
   }
 
   /**
@@ -233,6 +234,7 @@ export class PerformanceCollector {
           if (ttfb > 0) {
             this.metrics.ttfb = ttfb;
             this.recordMetric('ttfb', ttfb);
+            this.notifyCallbacks();  // ✅ 添加回调通知
           }
         }
       }
@@ -250,12 +252,14 @@ export class PerformanceCollector {
         const navigationEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
         if (navigationEntries.length > 0) {
           const navEntry = navigationEntries[0];
+          let hasUpdates = false;
 
           // DOM Content Loaded - 使用fetchStart作为基准
           const domContentLoaded = Math.round(navEntry.domContentLoadedEventEnd - navEntry.fetchStart);
           if (domContentLoaded > 0) {
             this.metrics.domContentLoaded = domContentLoaded;
             this.recordMetric('dom_content_loaded', domContentLoaded);
+            hasUpdates = true;
           }
 
           // Load Complete - 使用fetchStart作为基准
@@ -263,6 +267,12 @@ export class PerformanceCollector {
           if (loadComplete > 0) {
             this.metrics.loadComplete = loadComplete;
             this.recordMetric('load_complete', loadComplete);
+            hasUpdates = true;
+          }
+
+          // 只有在有指标更新时才通知回调
+          if (hasUpdates) {
+            this.notifyCallbacks();  // ✅ 添加回调通知
           }
         }
       }
@@ -276,7 +286,7 @@ export class PerformanceCollector {
    */
   private recordMetric(name: string, value: number): void {
     try {
-      const histogram = this.meter.getHistogram(`performance_${name}`);
+      const histogram = this.histograms.get(name);
       if (histogram) {
         histogram.record(value);
       }
@@ -296,6 +306,7 @@ export class PerformanceCollector {
    * 通知所有回调
    */
   private notifyCallbacks(): void {
+    console.log('notifyCallbacks', this.callbacks);
     this.callbacks.forEach(callback => {
       try {
         callback({ ...this.metrics });

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>路由监控示例 - Frontend Monitor SDK</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            display: grid;
+            gap: 20px;
+        }
+        .section {
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .log-area {
+            background: #1e1e1e;
+            color: #fff;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .route-info {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .config-section {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #ffc107;
+        }
+        .demo-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 前端监控SDK - 路由监控示例</h1>
+
+    <div class="container">
+        <!-- 配置说明 -->
+        <div class="section config-section">
+            <h3>⚙️ 路由监控配置</h3>
+            <p>此示例展示了如何使用前端监控SDK的路由监控功能：</p>
+            <ul>
+                <li>✅ Hash路由监控 (<code>#/path</code>)</li>
+                <li>✅ History API监控 (<code>pushState/replaceState</code>)</li>
+                <li>✅ 浏览器导航监控 (<code>popstate</code>)</li>
+                <li>✅ 路由参数解析</li>
+                <li>✅ 查询参数解析</li>
+                <li>✅ 路由切换性能统计</li>
+            </ul>
+        </div>
+
+        <!-- 当前路由信息 -->
+        <div class="section">
+            <h3>📍 当前路由信息</h3>
+            <div id="routeInfo" class="route-info">
+                <div><strong>路径:</strong> <span id="currentPath">/</span></div>
+                <div><strong>查询参数:</strong> <span id="currentQuery">{}</span></div>
+                <div><strong>路由参数:</strong> <span id="currentParams">{}</span></div>
+            </div>
+        </div>
+
+        <!-- 演示按钮 -->
+        <div class="section">
+            <h3>🎮 路由操作演示</h3>
+            <div class="demo-section">
+                <div>
+                    <h4>Hash路由测试</h4>
+                    <button class="btn" onclick="navigateHash('/home')">#/home</button>
+                    <button class="btn" onclick="navigateHash('/users/123')">#/users/123</button>
+                    <button class="btn" onclick="navigateHash('/search?q=test')">#/search?q=test</button>
+                </div>
+
+                <div>
+                    <h4>History API测试</h4>
+                    <button class="btn" onclick="pushHistory('/dashboard')">/dashboard</button>
+                    <button class="btn" onclick="pushHistory('/products/456')">/products/456</button>
+                    <button class="btn" onclick="replaceHistory('/settings')">/settings</button>
+                </div>
+
+                <div>
+                    <h4>浏览器导航</h4>
+                    <button class="btn" onclick="goBack()">← 后退</button>
+                    <button class="btn" onclick="goForward()">→ 前进</button>
+                    <button class="btn" onclick="externalNavigation()">外部链接</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 路由变化日志 -->
+        <div class="section">
+            <h3>📊 路由变化日志</h3>
+            <button class="btn" onclick="clearLog()">清空日志</button>
+            <div id="routeLog" class="log-area">
+                等待路由变化事件...\n
+            </div>
+        </div>
+
+        <!-- 统计信息 -->
+        <div class="section">
+            <h3>📈 路由统计</h3>
+            <div id="routeStats">
+                <div>🔄 总路由变化: <span id="totalChanges">0</span></div>
+                <div>⚡ 平均切换时间: <span id="avgDuration">0ms</span></div>
+                <div>🎯 Hash路由: <span id="hashCount">0</span></div>
+                <div>📜 History API: <span id="historyCount">0</span></div>
+                <div>↩️ Popstate: <span id="popstateCount">0</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // 在实际使用中，这里应该是从 npm 包导入
+        // import { createFrontendMonitor } from '@your-org/frontend-monitor-sdk';
+
+        // 为了演示，我们模拟SDK接口
+        console.log('🚀 初始化前端监控SDK...');
+
+        // 路由变化统计
+        const stats = {
+            totalChanges: 0,
+            totalDuration: 0,
+            hashCount: 0,
+            historyCount: 0,
+            popstateCount: 0,
+            loadCount: 0
+        };
+
+        // 日志函数
+        function log(message, data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('routeLog');
+            const logEntry = `[${timestamp}] ${message}\n`;
+            logElement.textContent += logEntry;
+
+            if (data) {
+                logElement.textContent += `  数据: ${JSON.stringify(data, null, 2)}\n`;
+            }
+
+            logElement.textContent += '\n';
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // 更新当前路由信息
+        function updateRouteInfo() {
+            const path = window.location.pathname + window.location.search + window.location.hash;
+            const query = Object.fromEntries(new URLSearchParams(window.location.search));
+
+            document.getElementById('currentPath').textContent = path;
+            document.getElementById('currentQuery').textContent = JSON.stringify(query);
+            document.getElementById('currentParams').textContent = '{}'; // 简化示例
+        }
+
+        // 更新统计信息
+        function updateStats() {
+            document.getElementById('totalChanges').textContent = stats.totalChanges;
+            document.getElementById('hashCount').textContent = stats.hashCount;
+            document.getElementById('historyCount').textContent = stats.historyCount;
+            document.getElementById('popstateCount').textContent = stats.popstateCount;
+
+            const avgDuration = stats.totalChanges > 0
+                ? Math.round(stats.totalDuration / stats.totalChanges)
+                : 0;
+            document.getElementById('avgDuration').textContent = `${avgDuration}ms`;
+        }
+
+        // 模拟路由监控回调
+        function handleRouteChange(event) {
+            log(`🔄 路由变化: ${event.type}`, {
+                from: event.from,
+                to: event.to,
+                duration: event.duration,
+                isSPA: event.isSPA,
+                params: event.params,
+                query: event.query
+            });
+
+            // 更新统计
+            stats.totalChanges++;
+            if (event.duration) {
+                stats.totalDuration += event.duration;
+            }
+
+            switch (event.type) {
+                case 'hash':
+                    stats.hashCount++;
+                    break;
+                case 'pushstate':
+                case 'replacestate':
+                    stats.historyCount++;
+                    break;
+                case 'popstate':
+                    stats.popstateCount++;
+                    break;
+                case 'load':
+                    stats.loadCount++;
+                    break;
+            }
+
+            updateStats();
+            updateRouteInfo();
+        }
+
+        // 路由导航函数
+        window.navigateHash = function(path) {
+            log(`🎯 导航到Hash路由: ${path}`);
+            window.location.hash = path;
+
+            // 模拟路由变化事件
+            setTimeout(() => {
+                handleRouteChange({
+                    type: 'hash',
+                    from: window.location.pathname,
+                    to: window.location.pathname + window.location.search + window.location.hash,
+                    timestamp: Date.now(),
+                    isSPA: true,
+                    duration: Math.random() * 50 + 10, // 模拟路由切换时间
+                    query: {},
+                    params: {}
+                });
+            }, 0);
+        };
+
+        window.pushHistory = function(path) {
+            log(`📜 使用History API pushState: ${path}`);
+            const state = { path, timestamp: Date.now() };
+            history.pushState(state, '', path);
+
+            // 模拟路由变化事件
+            setTimeout(() => {
+                handleRouteChange({
+                    type: 'pushstate',
+                    from: window.location.pathname,
+                    to: path,
+                    timestamp: Date.now(),
+                    isSPA: true,
+                    duration: Math.random() * 80 + 20,
+                    query: {},
+                    params: {},
+                    state
+                });
+            }, 0);
+        };
+
+        window.replaceHistory = function(path) {
+            log(`📝 使用History API replaceState: ${path}`);
+            const state = { path, timestamp: Date.now() };
+            history.replaceState(state, '', path);
+
+            // 模拟路由变化事件
+            setTimeout(() => {
+                handleRouteChange({
+                    type: 'replacestate',
+                    from: window.location.pathname,
+                    to: path,
+                    timestamp: Date.now(),
+                    isSPA: true,
+                    duration: Math.random() * 60 + 15,
+                    query: {},
+                    params: {},
+                    state
+                });
+            }, 0);
+        };
+
+        window.goBack = function() {
+            log('⬅️ 浏览器后退');
+            history.back();
+
+            // 模拟popstate事件
+            setTimeout(() => {
+                handleRouteChange({
+                    type: 'popstate',
+                    from: '/unknown',
+                    to: window.location.pathname,
+                    timestamp: Date.now(),
+                    isSPA: true,
+                    duration: Math.random() * 30 + 5,
+                    query: {},
+                    params: {}
+                });
+            }, 100);
+        };
+
+        window.goForward = function() {
+            log('➡️ 浏览器前进');
+            history.forward();
+
+            setTimeout(() => {
+                handleRouteChange({
+                    type: 'popstate',
+                    from: '/unknown',
+                    to: window.location.pathname,
+                    timestamp: Date.now(),
+                    isSPA: true,
+                    duration: Math.random() * 30 + 5,
+                    query: {},
+                    params: {}
+                });
+            }, 100);
+        };
+
+        window.externalNavigation = function() {
+            log('🌐 外部导航 (将离开当前页面)');
+            setTimeout(() => {
+                window.location.href = 'https://example.com';
+            }, 2000);
+        };
+
+        window.clearLog = function() {
+            document.getElementById('routeLog').textContent = '日志已清空\n\n';
+        };
+
+        // 模拟SDK初始化
+        function initializeSDK() {
+            log('🚀 模拟SDK初始化开始...');
+
+            // 模拟初始化过程
+            setTimeout(() => {
+                log('✅ SDK初始化完成', {
+                    serviceName: 'route-monitoring-demo',
+                    endpoint: 'https://collector.example.com',
+                    enableRouteMonitoring: true,
+                    routeMonitoringConfig: {
+                        hashRouting: true,
+                        historyAPI: true,
+                        popstate: true,
+                        parseParams: true,
+                        parseQuery: true
+                    }
+                });
+
+                // 记录页面加载路由
+                handleRouteChange({
+                    type: 'load',
+                    from: '',
+                    to: window.location.pathname + window.location.search + window.location.hash,
+                    timestamp: Date.now(),
+                    isSPA: false,
+                    title: document.title
+                });
+
+                updateRouteInfo();
+            }, 1000);
+        }
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', initializeSDK);
+
+        // 监听实际的浏览器事件（真实环境中的行为）
+        window.addEventListener('hashchange', () => {
+            log('🔗 实际hashchange事件触发');
+            updateRouteInfo();
+        });
+
+        window.addEventListener('popstate', (event) => {
+            log('📍 实际popstate事件触发', { state: event.state });
+            updateRouteInfo();
+        });
+    </script>
+</body>
+</html>
