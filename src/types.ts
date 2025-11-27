@@ -455,6 +455,14 @@ export interface RouteMonitoringConfig {
   parseQuery?: boolean;
 
   /**
+   * 指标导出间隔（毫秒）
+   * 默认30秒（30000毫秒），适用于大多数应用场景
+   * 高频监控（如性能指标）建议15秒
+   * 业务指标（如用户行为）建议60秒
+   */
+  exportIntervalMillis?: number;
+
+  /**
    * 自定义路由匹配函数
    */
   customRouteMatcher?: (path: string) => { params?: Record<string, string>; query?: Record<string, string> };
