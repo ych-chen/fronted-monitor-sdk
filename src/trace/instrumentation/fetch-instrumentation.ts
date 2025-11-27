@@ -12,11 +12,13 @@ interface FetchOptions {
 export class FetchInstrumentation {
   private originalFetch: typeof globalThis.fetch;
   private tracer: TraceManager;
+  private userContextManager: any; // 避免循环依赖
   private options: FetchOptions;
   private enabled = false;
 
-  constructor(tracer: TraceManager, options: FetchOptions = {}) {
+  constructor(tracer: TraceManager, options: FetchOptions = {}, userContextManager?: any) {
     this.tracer = tracer;
+    this.userContextManager = userContextManager;
     this.options = {
       propagateTraceHeaderCorsUrls: [],
       excludedUrls: [],
@@ -69,10 +71,15 @@ export class FetchInstrumentation {
           return self.originalFetch(input, init);
         }
 
+        // 获取用户属性
+        const userAttributes = self.userContextManager ?
+          self.userContextManager.getUserAttributes() : {};
+
         // 创建span
         const span = self.tracer.startSpan(`HTTP ${requestInfo.method}`, {
           kind: SpanKind.CLIENT,
           attributes: {
+            ...userAttributes,
             'http.method': requestInfo.method,
             'http.url': self.sanitizeUrl(requestInfo.url),
             'http.request.body.size': requestInfo.bodySize,

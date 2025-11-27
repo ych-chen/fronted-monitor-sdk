@@ -14,11 +14,13 @@ export class XHRInstrumentation {
   private originalXHRSend: typeof XMLHttpRequest.prototype.send;
   private originalXHRSetRequestHeader: typeof XMLHttpRequest.prototype.setRequestHeader;
   private tracer: TraceManager;
+  private userContextManager: any; // 避免循环依赖
   private options: XHROptions;
   private enabled = false;
 
-  constructor(tracer: TraceManager, options: XHROptions = {}) {
+  constructor(tracer: TraceManager, options: XHROptions = {}, userContextManager?: any) {
     this.tracer = tracer;
+    this.userContextManager = userContextManager;
     this.options = {
       propagateTraceHeaderCorsUrls: [],
       excludedUrls: [],
@@ -97,10 +99,15 @@ export class XHRInstrumentation {
       const method = (this as any).__monitor_method;
       const startTime = Date.now();
 
+      // 获取用户属性
+      const userAttributes = self.userContextManager ?
+        self.userContextManager.getUserAttributes() : {};
+
       // 创建span
       const span = self.tracer.startSpan(`HTTP ${method}`, {
         kind: SpanKind.CLIENT,
         attributes: {
+          ...userAttributes,
           'http.method': method,
           'http.url': self.sanitizeUrl(url),
           'http.request.body.size': body ? self.getRequestBodySize(body) : 0,
@@ -241,12 +248,20 @@ export class XHRInstrumentation {
       // 创建一个临时对象来存储headers，然后使用OpenTelemetry的propagation API
       const headers: Record<string, string> = {};
 
-      // 使用OpenTelemetry标准的propagation API注入trace上下文
-      propagation.inject(context.active(), headers);
+      // 使用span的上下文进行注入，确保trace信息正确传播
+      const spanContext = span?.spanContext();
+      if (spanContext) {
+        // 使用OpenTelemetry标准的propagation API注入trace上下文
+        propagation.inject(context.active(), headers);
+      }
 
       // 将注入的headers设置到XHR中
       Object.entries(headers).forEach(([key, value]) => {
-        xhr.setRequestHeader(key, value);
+        try {
+          xhr.setRequestHeader(key, value);
+        } catch (headerError) {
+          // 忽略设置头失败的情况
+        }
       });
     } catch (error) {
       console.warn('Failed to inject trace headers:', error);

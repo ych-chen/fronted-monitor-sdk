@@ -275,6 +275,19 @@ export interface FrontendMonitorSDK {
   getTraceManager(): any;
   /** 获取当前路由信息 */
   getCurrentRoute(): { path: string; query: Record<string, string>; params: Record<string, string> };
+
+  /** 设置用户信息 */
+  setUser(userInfo: UserInfo): void;
+
+  /** 更新用户信息（合并更新） */
+  updateUser(userInfo: Partial<UserInfo>): void;
+
+  /** 清除用户信息 */
+  clearUser(): void;
+
+  /** 获取当前用户信息 */
+  getCurrentUser(): UserInfo | null;
+
   /** 销毁SDK */
   destroy(): Promise<void>;
 }
@@ -379,6 +392,27 @@ export interface RouteChangeEvent {
    * 标识是否为单页应用的路由变化
    */
   isSPA?: boolean;
+}
+
+/**
+ * 用户信息接口
+ *
+ * 定义了用户上下文信息的数据结构
+ * 用于在监控链路中标识和追踪用户行为
+ */
+export interface UserInfo {
+  /** 用户唯一标识 - 必填 */
+  id: string;
+  /** 用户姓名 - 可选 */
+  name?: string;
+  /** 用户邮箱 - 可选 */
+  email?: string;
+  /** 用户套餐/等级 - 可选 */
+  plan?: string;
+  /** 用户角色 - 可选 */
+  role?: string;
+  /** 其他自定义属性 - 可选 */
+  [key: string]: any;
 }
 
 /**

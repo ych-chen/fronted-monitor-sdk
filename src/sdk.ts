@@ -25,6 +25,7 @@ import type {
   SpanAttributes,
   TraceModuleConfig,
   MetricsModuleConfig,
+  UserInfo,
 } from './types';
 
 // 导入各个模块
@@ -32,6 +33,7 @@ import { TraceManager } from './trace/tracer';
 import { XHRInstrumentation, FetchInstrumentation } from './trace/instrumentation';
 import { PerformanceCollector, CustomMetricsCollector } from './metrics';
 import { RouteMonitor } from './route/route-monitor';
+import { UserContextManager } from './user/user-context-manager';
 import { DEFAULT_CONFIG } from './config/default-config';
 
 /**
@@ -113,6 +115,7 @@ export class FrontendMonitorSDKImpl {
   private xhrInstrumentation: XHRInstrumentation | null = null;
   private fetchInstrumentation: FetchInstrumentation | null = null;
   private routeMonitor: RouteMonitor | null = null;
+  private userContextManager: UserContextManager | null = null;
 
   private isInitialized = false;
   private rootSpan: any = null;
@@ -145,6 +148,10 @@ export class FrontendMonitorSDKImpl {
     // 初始化各个模块
     this.initializeTraceModule();
     this.initializeMetricsModule();
+
+    // 初始化用户上下文管理器（在auto instrumentation之前）
+    this.userContextManager = new UserContextManager();
+
     this.initializeAutoInstrumentation();
 
     // 设置自动监控
@@ -275,11 +282,11 @@ export class FrontendMonitorSDKImpl {
     };
 
     // XMLHttpRequest instrumentation
-    this.xhrInstrumentation = new XHRInstrumentation(this.traceManager, traceConfig);
+    this.xhrInstrumentation = new XHRInstrumentation(this.traceManager, traceConfig, this.userContextManager);
     this.xhrInstrumentation.enable();
 
     // Fetch instrumentation
-    this.fetchInstrumentation = new FetchInstrumentation(this.traceManager, traceConfig);
+    this.fetchInstrumentation = new FetchInstrumentation(this.traceManager, traceConfig, this.userContextManager);
     this.fetchInstrumentation.enable();
   }
 
@@ -399,6 +406,10 @@ export class FrontendMonitorSDKImpl {
 
     // 设置路由变化回调
     this.routeMonitor.onRouteChange((event: RouteChangeEvent) => {
+      // 获取用户属性
+      const userAttributes = this.userContextManager ?
+        this.userContextManager.getUserAttributes() : {};
+
       // 记录路由变化事件为用户交互
       this.recordUserInteraction({
         type: 'navigation',
@@ -419,6 +430,7 @@ export class FrontendMonitorSDKImpl {
       // 记录路由变化指标
       if (this.customMetricsCollector) {
         this.customMetricsCollector.recordEvent('route_change', 1, {
+          ...userAttributes,
           route_type: event.type,
           from_path: this.extractPath(event.from),
           to_path: this.extractPath(event.to),
@@ -428,6 +440,7 @@ export class FrontendMonitorSDKImpl {
         // 记录路由切换时间
         if (event.duration) {
           this.customMetricsCollector.recordDuration('route_change_duration', event.duration, {
+            ...userAttributes,
             route_type: event.type,
             is_spa: event.isSPA?.toString() || 'false',
           });
@@ -438,6 +451,7 @@ export class FrontendMonitorSDKImpl {
       if (this.traceManager) {
         const span = this.traceManager.startSpan(`route_change_${event.type}`, {
           attributes: {
+            ...userAttributes,
             'route.from': event.from,
             'route.to': event.to,
             'route.type': event.type,
@@ -458,7 +472,19 @@ export class FrontendMonitorSDKImpl {
       throw new Error('SDK is not initialized. Call init() first.');
     }
 
-    const span = this.traceManager.startSpan(name, options);
+    // 获取用户属性并与选项合并
+    const userAttributes = this.userContextManager ?
+      this.userContextManager.getUserAttributes() : {};
+
+    const enrichedOptions = {
+      ...options,
+      attributes: {
+        ...userAttributes,
+        ...options?.attributes
+      }
+    };
+
+    const span = this.traceManager.startSpan(name, enrichedOptions);
     return new TracingProviderImpl(span);
   }
 
@@ -467,13 +493,24 @@ export class FrontendMonitorSDKImpl {
 
     const errorObj = typeof error === 'string' ? new Error(error) : error;
 
+    // 获取用户属性
+    const userAttributes = this.userContextManager ?
+      this.userContextManager.getUserAttributes() : {};
+
+    // 合并用户属性和错误上下文
+    const enrichedContext = {
+      ...userAttributes,
+      ...context,
+    };
+
     if (this.traceManager) {
-      this.traceManager.recordError(errorObj, context);
+      this.traceManager.recordError(errorObj, enrichedContext);
     }
 
     // 记录错误指标
     if (this.customMetricsCollector) {
       this.customMetricsCollector.recordEvent('error', 1, {
+        ...userAttributes,
         error_type: errorObj.name,
         error_message: errorObj.message,
       });
@@ -489,9 +526,14 @@ export class FrontendMonitorSDKImpl {
   recordUserInteraction(event: UserInteractionEvent): void {
     if (!this.isInitialized) return;
 
+    // 获取用户属性
+    const userAttributes = this.userContextManager ?
+      this.userContextManager.getUserAttributes() : {};
+
     if (this.traceManager) {
       const span = this.traceManager.startSpan(`user_interaction_${event.type}`, {
         attributes: {
+          ...userAttributes,
           'interaction.type': event.type,
           'interaction.element': event.element,
           'interaction.target': event.target,
@@ -567,6 +609,53 @@ export class FrontendMonitorSDKImpl {
     }
   }
 
+  /**
+   * 设置用户信息
+   * @param userInfo 用户信息对象
+   */
+  setUser(userInfo: UserInfo): void {
+    if (!this.isInitialized || !this.userContextManager) {
+      throw new Error('SDK is not initialized. Call init() first.');
+    }
+
+    this.userContextManager.setUser(userInfo);
+  }
+
+  /**
+   * 更新用户信息（合并更新）
+   * @param userInfo 要更新的用户信息字段
+   */
+  updateUser(userInfo: Partial<UserInfo>): void {
+    if (!this.isInitialized || !this.userContextManager) {
+      throw new Error('SDK is not initialized. Call init() first.');
+    }
+
+    this.userContextManager.updateUser(userInfo);
+  }
+
+  /**
+   * 清除用户信息
+   */
+  clearUser(): void {
+    if (!this.isInitialized || !this.userContextManager) {
+      throw new Error('SDK is not initialized. Call init() first.');
+    }
+
+    this.userContextManager.clearUser();
+  }
+
+  /**
+   * 获取当前用户信息
+   * @returns 当前用户信息或null
+   */
+  getCurrentUser(): UserInfo | null {
+    if (!this.isInitialized || !this.userContextManager) {
+      throw new Error('SDK is not initialized. Call init() first.');
+    }
+
+    return this.userContextManager.getCurrentUser();
+  }
+
   async destroy(): Promise<void> {
     if (this.tracerProvider) {
       await this.tracerProvider.shutdown();
@@ -605,6 +694,12 @@ export class FrontendMonitorSDKImpl {
     if (this.routeMonitor) {
       this.routeMonitor.destroy();
       this.routeMonitor = null;
+    }
+
+    // 清理用户上下文
+    if (this.userContextManager) {
+      this.userContextManager.clearUser();
+      this.userContextManager = null;
     }
 
     this.traceManager = null;
