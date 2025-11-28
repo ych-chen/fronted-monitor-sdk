@@ -104,6 +104,13 @@ export interface MonitorConfig {
   excludedUrls?: string[];
 
   /**
+   * 需要注入Trace头的URL模式 - 可选
+   * 指定需要自动添加traceparent和tracestate头的URL模式列表
+   * 支持通配符匹配，例如：['/api/*', 'https://api.example.com/*']
+   */
+  propagateTraceHeaderCorsUrls?: string[];
+
+  /**
    * 是否启用路由监控 - 可选，默认false
    * 控制是否自动监控页面路由变化
    * 包括Hash路由、History API、SPA路由变化等

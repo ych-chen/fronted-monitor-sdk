@@ -277,7 +277,7 @@ export class FrontendMonitorSDKImpl {
     const traceConfig: TraceModuleConfig = {
       enabled: true,
       excludedUrls: this.config.excludedUrls,
-      propagateTraceHeaderCorsUrls: [this.config.endpoint],
+      propagateTraceHeaderCorsUrls: this.config.propagateTraceHeaderCorsUrls || [],
     };
 
     // XMLHttpRequest instrumentation
