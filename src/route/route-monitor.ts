@@ -303,12 +303,13 @@ export class RouteMonitor {
       return false;
     }
 
-    return this.config.ignoredPaths.some(pattern => {
+    return this.config.ignoredPaths.some((pattern: string | RegExp) => {
       if (pattern instanceof RegExp) {
         return pattern.test(path);
-      } else {
+      } else if (typeof pattern === 'string') {
         return path.includes(pattern);
       }
+      return false;
     });
   }
 

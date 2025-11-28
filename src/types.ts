@@ -36,7 +36,17 @@ export interface MonitorConfig {
    */
   sampleRate?: number;
 
-  
+  /**
+   * 指标导出间隔（毫秒）- 可选，默认30秒
+   * 控制监控指标导出到后端的频率间隔
+   * 30秒适用于大多数Web应用
+   * 15秒适用于高频性能监控
+   * 60秒适用于用户行为分析
+   * 5分钟适用于低频或成本敏感场景
+   */
+  exportIntervalMillis?: number;
+
+
   /**
    * 自定义属性 - 可选
    * 全局标签，会附加到所有监控数据中

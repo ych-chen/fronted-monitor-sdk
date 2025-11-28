@@ -1,18 +1,13 @@
 import { trace, metrics, SpanStatusCode } from '@opentelemetry/api';
 import {
   WebTracerProvider,
-  BatchSpanProcessor,
 } from '@opentelemetry/sdk-trace-web';
 import { TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-base';
-import { MeterProvider } from '@opentelemetry/sdk-metrics';
+import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { Resource } from '@opentelemetry/resources';
-import {
-  SEMRESATTRS_SERVICE_NAME,
-  SEMRESATTRS_SERVICE_VERSION,
-  SEMRESATTRS_DEPLOYMENT_ENVIRONMENT,
-} from '@opentelemetry/semantic-conventions';
 
 import type {
   MonitorConfig,
@@ -120,7 +115,7 @@ export class FrontendMonitorSDKImpl {
   private isInitialized = false;
   private rootSpan: any = null;
 
-  constructor() {
+  constructor(userContextManager?: any) {
     // 构造函数
   }
 
@@ -169,9 +164,9 @@ export class FrontendMonitorSDKImpl {
 
     // 创建资源
     const resource = new Resource({
-      [SEMRESATTRS_SERVICE_NAME]: this.config.serviceName,
-      [SEMRESATTRS_SERVICE_VERSION]: this.config.serviceVersion || '1.0.0',
-      [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: this.config.attributes?.environment || 'production',
+      'service.name': this.config.serviceName,
+      'service.version': this.config.serviceVersion || '1.0.0',
+      'deployment.environment': this.config.attributes?.environment || 'production',
       ...this.config.attributes,
     });
 
@@ -200,7 +195,13 @@ export class FrontendMonitorSDKImpl {
 
     // 添加批量处理器
     this.tracerProvider.addSpanProcessor(
-      new BatchSpanProcessor(traceExporter)
+      new BatchSpanProcessor(traceExporter, {
+        // 批量配置
+        maxQueueSize: 100,
+        maxExportBatchSize: 10,
+        scheduledDelayMillis: this.config.exportIntervalMillis || 5000,
+        exportTimeoutMillis: 30000,
+      })
     );
 
     // 注册提供者
@@ -213,23 +214,21 @@ export class FrontendMonitorSDKImpl {
   private async initializeMetrics(resource: Resource): Promise<void> {
     if (!this.config) return;
 
-    this.meterProvider = new MeterProvider({
-      resource,
-    });
-
     // 创建指标导出器
     const metricExporter = new OTLPMetricExporter({
       url: `${this.config.endpoint}/v1/metrics`,
     });
 
-    // 添加批量导出器
-    const PeriodicExportingMetricReader = (await import('@opentelemetry/sdk-metrics')).PeriodicExportingMetricReader;
-    this.meterProvider.addMetricReader(
-      new PeriodicExportingMetricReader({
-        exporter: metricExporter,
-        exportIntervalMillis: 30000,
-      })
-    );
+    // 创建MeterProvider并配置MetricReader
+    this.meterProvider = new MeterProvider({
+      resource,
+      readers: [
+        new PeriodicExportingMetricReader({
+          exporter: metricExporter,
+          exportIntervalMillis: this.config.exportIntervalMillis || 30000,
+        })
+      ],
+    });
 
     // 注册提供者
     metrics.setGlobalMeterProvider(this.meterProvider);
