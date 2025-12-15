@@ -1,4 +1,4 @@
-import { SpanKind, SpanStatusCode, propagation, context } from '@opentelemetry/api';
+import { SpanKind, SpanStatusCode, propagation, context, trace } from '@opentelemetry/api';
 import type { TraceManager } from '../tracer';
 
 interface XHROptions {
@@ -14,7 +14,7 @@ export class XHRInstrumentation {
   private originalXHRSend: typeof XMLHttpRequest.prototype.send;
   private originalXHRSetRequestHeader: typeof XMLHttpRequest.prototype.setRequestHeader;
   private tracer: TraceManager;
-  private userContextManager: any; // 避免循环依赖
+  private userContextManager: any;
   private options: XHROptions;
   private enabled = false;
 
@@ -100,8 +100,7 @@ export class XHRInstrumentation {
       const startTime = Date.now();
 
       // 获取用户属性
-      const userAttributes = self.userContextManager ?
-        self.userContextManager.getUserAttributes() : {};
+      const userAttributes = self.userContextManager ? self.userContextManager.getUserAttributes() : {};
 
       // 创建span
       const span = self.tracer.startSpan(`HTTP ${method}`, {
@@ -114,7 +113,6 @@ export class XHRInstrumentation {
           'user_agent': navigator.userAgent,
         },
       });
-
       // 注入trace头
       self.injectTraceHeaders(this, span);
 
@@ -226,6 +224,18 @@ export class XHRInstrumentation {
 
     return true;
   }
+  /**
+   * 判断是否注入trace headers
+   */
+  private shouldInjectTraceHeaders(url: string): boolean {
+    if (!this.options.propagateTraceHeaderCorsUrls || this.options.propagateTraceHeaderCorsUrls.length === 0) {
+      return false
+    }
+    const matchedPattern = this.options.propagateTraceHeaderCorsUrls.find(pattern => this.matchPattern(url, pattern))
+    const shouldInject = !!matchedPattern
+
+    return shouldInject
+  }
 
   /**
    * URL模式匹配
@@ -248,11 +258,11 @@ export class XHRInstrumentation {
       // 创建一个临时对象来存储headers，然后使用OpenTelemetry的propagation API
       const headers: Record<string, string> = {};
 
-      // 使用span的上下文进行注入，确保trace信息正确传播
-      const spanContext = span?.spanContext();
-      if (spanContext) {
+      const spanContext = span.spanContext();
+      if (spanContext && span) {
         // 使用OpenTelemetry标准的propagation API注入trace上下文
-        propagation.inject(context.active(), headers);
+        const spanContextForPropagation = trace.setSpan(context.active(), span);
+        propagation.inject(spanContextForPropagation, headers);
       }
 
       // 将注入的headers设置到XHR中
@@ -260,9 +270,10 @@ export class XHRInstrumentation {
         try {
           xhr.setRequestHeader(key, value);
         } catch (headerError) {
-          // 忽略设置头失败的情况
+          // 忽略设置请求头时出现的错误
         }
       });
+
     } catch (error) {
       console.warn('Failed to inject trace headers:', error);
     }

@@ -1,4 +1,4 @@
-import { trace, SpanKind, SpanStatusCode, Attributes, context } from '@opentelemetry/api';
+import { trace, SpanKind, SpanStatusCode, Attributes, context, Span, SpanContext } from '@opentelemetry/api';
 
 export interface TraceOptions {
   name: string;
@@ -13,8 +13,8 @@ export interface TraceOptions {
 export class TraceManager {
   private tracer: any;
 
-  constructor(serviceName: string) {
-    this.tracer = trace.getTracer(serviceName);
+  constructor(serviceName: string, serviceVersion?: string | undefined) {
+    this.tracer = trace.getTracer(serviceName, serviceVersion);
   }
 
   /**
@@ -83,12 +83,32 @@ export class TraceManager {
   /**
    * 记录错误到当前活跃的span
    */
-  recordError(error: Error, attributes?: Attributes): void {
-    const activeSpan = trace.getActiveSpan();
+  recordError(error: Error, attributes?: Attributes): SpanContext {
+    const activeSpan = this.getActiveSpan();
     if (activeSpan) {
       activeSpan.recordException(error);
       activeSpan.setAttributes(attributes || {});
+      activeSpan.setStatus({ code: SpanStatusCode.ERROR, message: error.message })
+      return activeSpan.spanContext();
     }
+    console.log('recordError activeSpan', activeSpan)
+    const errorSpan = this.tracer.startSpan('recordError')
+    if (errorSpan) {
+      errorSpan.recordException(error);
+      errorSpan.setAttributes(attributes || {});
+      errorSpan.setStatus({ code: SpanStatusCode.ERROR, message: error.message })
+      errorSpan.end();
+    }
+    console.log('recordError errorSpan', errorSpan)
+    return errorSpan.spanContext();
+  }
+  /**
+   * 获取当前活跃的span
+   */
+  getActiveSpan(): any {
+    const active = trace.getActiveSpan() || trace.getSpan(context.active());
+    console.log('getActiveSpan ---> ', active)
+    return active;
   }
 
   /**
@@ -96,13 +116,6 @@ export class TraceManager {
    */
   runInContext<T>(span: any, fn: () => T): T {
     return context.with(trace.setSpan(context.active(), span), fn);
-  }
-
-  /**
-   * 获取当前活跃的span
-   */
-  getActiveSpan(): any {
-    return trace.getActiveSpan();
   }
 
   /**
@@ -136,7 +149,6 @@ export class TraceManager {
         'span.kind': 'root',
       },
     });
-
     return span;
   }
 }

@@ -1,6 +1,3 @@
-/**
- * 默认监控配置
- */
 import type { MonitorConfig } from '../types';
 
 /**
@@ -8,7 +5,7 @@ import type { MonitorConfig } from '../types';
  */
 export const DEFAULT_CONFIG: Partial<MonitorConfig> = {
   sampleRate: 1.0,
-  exportIntervalMillis: 30000, // 30秒默认间隔
+  exportIntervalMills: 30000, // 默认30秒上报一次
   enablePerformanceMonitoring: true,
   enableErrorMonitoring: true,
   enableUserInteractionMonitoring: true,

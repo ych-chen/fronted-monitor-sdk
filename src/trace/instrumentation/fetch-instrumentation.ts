@@ -12,7 +12,7 @@ interface FetchOptions {
 export class FetchInstrumentation {
   private originalFetch: typeof globalThis.fetch;
   private tracer: TraceManager;
-  private userContextManager: any; // 避免循环依赖
+  private userContextManager: any;
   private options: FetchOptions;
   private enabled = false;
 
@@ -72,8 +72,7 @@ export class FetchInstrumentation {
         }
 
         // 获取用户属性
-        const userAttributes = self.userContextManager ?
-          self.userContextManager.getUserAttributes() : {};
+        const userAttributes = self.userContextManager ? self.userContextManager.getUserAttributes() : {};
 
         // 创建span
         const span = self.tracer.startSpan(`HTTP ${requestInfo.method}`, {

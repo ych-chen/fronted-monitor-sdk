@@ -36,16 +36,10 @@ export interface MonitorConfig {
    */
   sampleRate?: number;
 
-  /**
-   * 指标导出间隔（毫秒）- 可选，默认30秒
-   * 控制监控指标导出到后端的频率间隔
-   * 30秒适用于大多数Web应用
-   * 15秒适用于高频性能监控
-   * 60秒适用于用户行为分析
-   * 5分钟适用于低频或成本敏感场景
+  /** 
+   * 指标导出间隔（毫秒） -可选，默认30秒
    */
-  exportIntervalMillis?: number;
-
+  exportIntervalMills?: number;
 
   /**
    * 自定义属性 - 可选
@@ -97,32 +91,26 @@ export interface MonitorConfig {
   enableCustomMetrics?: boolean;
 
   /**
+ * 是否启用日志 - 可选，默认true
+ * 控制是否允许用户通过API上报日志
+ * 用于业务相关的日志监控
+ */
+  enableLogMonitoring?: boolean;
+
+  /**
    * 排除的URL模式 - 可选
    * 指定不需要监控的URL模式列表
    * 支持正则表达式或字符串匹配，用于过滤掉不需要监控的请求
    */
   excludedUrls?: string[];
 
-  /**
-   * 需要注入Trace头的URL模式 - 可选
-   * 指定需要自动添加traceparent和tracestate头的URL模式列表
-   * 支持通配符匹配，例如：['/api/*', 'https://api.example.com/*']
-   */
-  propagateTraceHeaderCorsUrls?: string[];
-
-  /**
-   * 是否启用路由监控 - 可选，默认false
-   * 控制是否自动监控页面路由变化
-   * 包括Hash路由、History API、SPA路由变化等
-   */
-  enableRouteMonitoring?: boolean;
-
-  /**
-   * 路由监控配置 - 可选
-   * 路由监控的详细配置选项
-   */
-  routeMonitoringConfig?: RouteMonitoringConfig;
+  /** 
+   * 需要注入trace头的URL模式，可选
+  */
+  propagateTraceHeaderCorsUrls?: PropagateTraceHeaderCorsUrl | PropagateTraceHeaderCorsUrl[];
 }
+
+export declare type PropagateTraceHeaderCorsUrl = string | RegExp;
 
 /**
  * Span属性接口
@@ -284,27 +272,18 @@ export interface FrontendMonitorSDK {
   recordMetrics(metrics: Partial<any>): void;
   /** 记录用户交互 */
   recordUserInteraction(event: UserInteractionEvent): void;
-  /** 记录路由变化 */
-  recordRouteChange(event: RouteChangeEvent): void;
   /** 获取指标收集器 */
   getMetricsCollector(): MetricsCollector;
   /** 获取追踪管理器 */
   getTraceManager(): any;
-  /** 获取当前路由信息 */
-  getCurrentRoute(): { path: string; query: Record<string, string>; params: Record<string, string> };
-
   /** 设置用户信息 */
-  setUser(userInfo: UserInfo): void;
-
-  /** 更新用户信息（合并更新） */
-  updateUser(userInfo: Partial<UserInfo>): void;
-
+  setUser(userInfo: UserInfo): any;
+  /** 更新用户信息 */
+  updateUser(userInfo: Partial<UserInfo>): any;
   /** 清除用户信息 */
   clearUser(): void;
-
-  /** 获取当前用户信息 */
+  /** 获取用户信息 */
   getCurrentUser(): UserInfo | null;
-
   /** 销毁SDK */
   destroy(): Promise<void>;
 }
@@ -342,145 +321,15 @@ export interface ErrorModuleConfig {
   captureResourceErrors?: boolean;
 }
 
-/**
- * 路由变化事件接口
- *
- * 用于监控页面路由变化的详细信息
- */
-export interface RouteChangeEvent {
-  /**
-   * 路由类型 - 必填
-   * 'hash': Hash路由变化 (#/path)
-   * 'popstate': 浏览器前进/后退
-   * 'pushstate': History API pushState
-   * 'replacestate': History API replaceState
-   * 'load': 页面初次加载
-   */
-  type: 'hash' | 'popstate' | 'pushstate' | 'replacestate' | 'load';
-
-  /**
-   * 源路径 - 路由变化前的路径
-   */
-  from: string;
-
-  /**
-   * 目标路径 - 路由变化后的路径
-   */
-  to: string;
-
-  /**
-   * 时间戳 - 必填
-   * 路由变化发生的时间戳
-   */
-  timestamp: number;
-
-  /**
-   * 路由切换耗时 - 可选
-   * 从开始路由变化到完成的时间（毫秒）
-   */
-  duration?: number;
-
-  /**
-   * 路由参数 - 可选
-   * 解析后的路由参数对象
-   */
-  params?: Record<string, string>;
-
-  /**
-   * 查询参数 - 可选
-   * URL查询参数对象
-   */
-  query?: Record<string, string>;
-
-  /**
-   * 页面标题 - 可选
-   * 路由变化后的页面标题
-   */
-  title?: string;
-
-  /**
-   * 导航状态 - 可选
-   * popstate事件的状态对象
-   */
-  state?: any;
-
-  /**
-   * 是否为SPA路由 - 可选
-   * 标识是否为单页应用的路由变化
-   */
-  isSPA?: boolean;
-}
-
-/**
- * 用户信息接口
- *
- * 定义了用户上下文信息的数据结构
- * 用于在监控链路中标识和追踪用户行为
- */
 export interface UserInfo {
-  /** 用户唯一标识 - 必填 */
+  /** 用户ID 必填 */
   id: string;
-  /** 用户姓名 - 可选 */
+  /** 用户名 */
   name?: string;
-  /** 用户邮箱 - 可选 */
+  /** 用户邮箱 */
   email?: string;
-  /** 用户套餐/等级 - 可选 */
-  plan?: string;
-  /** 用户角色 - 可选 */
-  role?: string;
-  /** 其他自定义属性 - 可选 */
-  [key: string]: any;
-}
-
-/**
- * 路由监控配置接口
- */
-export interface RouteMonitoringConfig {
-  /**
-   * 是否启用路由监控
-   */
-  enabled?: boolean;
-
-  /**
-   * 是否监控Hash路由变化
-   */
-  hashRouting?: boolean;
-
-  /**
-   * 是否监控History API
-   */
-  historyAPI?: boolean;
-
-  /**
-   * 是否监控popstate事件
-   */
-  popstate?: boolean;
-
-  /**
-   * 需要忽略的路径模式
-   */
-  ignoredPaths?: string[];
-
-  /**
-   * 是否解析路由参数
-   */
-  parseParams?: boolean;
-
-  /**
-   * 是否解析查询参数
-   */
-  parseQuery?: boolean;
-
-  /**
-   * 指标导出间隔（毫秒）
-   * 默认30秒（30000毫秒），适用于大多数应用场景
-   * 高频监控（如性能指标）建议15秒
-   * 业务指标（如用户行为）建议60秒
-   */
-  exportIntervalMillis?: number;
-
-  /**
-   * 自定义路由匹配函数
-   */
-  customRouteMatcher?: (path: string) => { params?: Record<string, string>; query?: Record<string, string> };
+  /** 用户手机号 */
+  phone?: string;
+  /** 用户自定义属性 */
+  [key: string]: any
 }

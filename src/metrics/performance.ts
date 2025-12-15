@@ -30,6 +30,7 @@ export class PerformanceCollector {
 
   constructor(meter: any) {
     this.meter = meter;
+    // 设置指标收集器
     this.setupMetrics();
   }
 
@@ -37,41 +38,41 @@ export class PerformanceCollector {
    * 设置指标收集器
    */
   private setupMetrics(): void {
-    // 创建性能指标并保存引用
+    // 创建性能指标
     this.histograms.set('fcp', this.meter.createHistogram('performance_fcp', {
       description: 'First Contentful Paint time in milliseconds',
       unit: 'ms',
-    }));
+    }))
 
     this.histograms.set('lcp', this.meter.createHistogram('performance_lcp', {
       description: 'Largest Contentful Paint time in milliseconds',
       unit: 'ms',
-    }));
+    }))
 
     this.histograms.set('fid', this.meter.createHistogram('performance_fid', {
       description: 'First Input Delay time in milliseconds',
       unit: 'ms',
-    }));
+    }))
 
     this.histograms.set('cls', this.meter.createHistogram('performance_cls', {
       description: 'Cumulative Layout Shift score',
       unit: 'score',
-    }));
+    }))
 
     this.histograms.set('ttfb', this.meter.createHistogram('performance_ttfb', {
       description: 'Time to First Byte in milliseconds',
       unit: 'ms',
-    }));
+    }))
 
-    this.histograms.set('dom_content_loaded', this.meter.createHistogram('performance_dom_content_loaded', {
+    this.histograms.set('performance_dom_content_loaded', this.meter.createHistogram('performance_dom_content_loaded', {
       description: 'DOM Content Loaded time in milliseconds',
       unit: 'ms',
-    }));
+    }))
 
-    this.histograms.set('load_complete', this.meter.createHistogram('performance_load_complete', {
+    this.histograms.set('performance_load_complete', this.meter.createHistogram('performance_load_complete', {
       description: 'Page Load Complete time in milliseconds',
       unit: 'ms',
-    }));
+    }))
   }
 
   /**
@@ -89,26 +90,31 @@ export class PerformanceCollector {
 
     // FCP - First Contentful Paint
     if (config.fcp && 'PerformanceObserver' in window) {
+      console.log('📈 收集FCP指标...')
       this.observePaintMetrics('first-contentful-paint', 'fcp');
     }
 
     // LCP - Largest Contentful Paint
     if (config.lcp && 'PerformanceObserver' in window) {
+      console.log('📈 收集LCP指标...')
       this.observeLCP();
     }
 
     // FID - First Input Delay
     if (config.fid && 'PerformanceObserver' in window) {
+      console.log('📈 收集FID指标...')
       this.observeFID();
     }
 
     // CLS - Cumulative Layout Shift
     if (config.cls && 'PerformanceObserver' in window) {
+      console.log('📈 收集CLS指标...')
       this.observeCLS();
     }
 
     // TTFB - Time to First Byte
     if (config.ttfb) {
+      console.log('📈 收集ttfb指标...')
       this.collectTTFB();
     }
 
@@ -132,7 +138,6 @@ export class PerformanceCollector {
       const observer = new PerformanceObserver((list) => {
         const entries = list.getEntries();
         const entry = entries[entries.length - 1]; // 获取最后一个FCP
-
         if (entry) {
           const value = Math.round(entry.startTime);
           this.metrics[key] = value;
@@ -234,7 +239,7 @@ export class PerformanceCollector {
           if (ttfb > 0) {
             this.metrics.ttfb = ttfb;
             this.recordMetric('ttfb', ttfb);
-            this.notifyCallbacks();  // ✅ 添加回调通知
+            this.notifyCallbacks()
           }
         }
       }
@@ -270,10 +275,8 @@ export class PerformanceCollector {
             hasUpdates = true;
           }
 
-          // 只有在有指标更新时才通知回调
-          if (hasUpdates) {
-            this.notifyCallbacks();  // ✅ 添加回调通知
-          }
+          // 只有在指标更新时才通知回调
+          hasUpdates && this.notifyCallbacks();
         }
       }
     } catch (error) {
@@ -306,7 +309,6 @@ export class PerformanceCollector {
    * 通知所有回调
    */
   private notifyCallbacks(): void {
-    console.log('notifyCallbacks', this.callbacks);
     this.callbacks.forEach(callback => {
       try {
         callback({ ...this.metrics });

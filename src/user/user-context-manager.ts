@@ -17,7 +17,7 @@ export class UserContextManager {
    */
   setUser(userInfo: UserInfo): void {
     if (!userInfo || !userInfo.id) {
-      throw new Error('User info must contain at least an id field');
+      throw new Error('用户信息不能缺少用户ID');
     }
 
     this.currentUser = { ...userInfo };
